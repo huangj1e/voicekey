@@ -590,11 +590,14 @@ impl Ctl {
         if s.channel == Channel::All {
             return self.begin_multi(Mode::Pick, s.multi, auto_stop);
         }
+        #[cfg(target_os = "linux")]
+        { self.front = pf::front_app(); }
         let Some(audio) = self.start_recorder() else { return };
         self.auto_stop = auto_stop;
         self.gen += 1;
         self.mode = Mode::Single(s.channel);
-        self.typer = s.streaming.then(Typer::default);
+        // Compositor shortcuts can keep modifiers held while recording.
+        self.typer = (s.streaming && !cfg!(target_os = "linux")).then(Typer::default);
         self.segs = Segments::default();
         let seg = self.segs.start();
         ui::hud(&self.app, "listen", "", s.channel);
@@ -734,8 +737,12 @@ impl Ctl {
     fn done(&mut self, ch: Channel, seg: usize, res: Result<String, String>) {
         match self.mode {
             Mode::Single(_) => {
-                self.segs.done(seg, res, self.typer.is_some());
+                // Linux commits only after recording; retain visible partials if a backend
+                // ends successfully with an empty final result.
+                self.segs.done(seg, res, self.typer.is_some() || cfg!(target_os = "linux"));
                 let text = self.segs.text();
+                #[cfg(target_os = "linux")]
+                eprintln!("voicekey: recognition segment complete, chars={}, finished={}", text.chars().count(), self.segs.finished());
                 if !self.segs.finished() {
                     if let Some(t) = self.typer.as_mut().filter(|_| !text.is_empty()) {
                         t.update(&text);
@@ -1129,6 +1136,16 @@ mod tests {
 
     fn row(channel: Channel, state: RowState, text: &str) -> Row {
         Row { channel, text: text.into(), state, ms: None }
+    }
+
+    #[test]
+    fn empty_final_can_keep_visible_partial_for_deferred_output() {
+        let mut segments = Segments::default();
+        let index = segments.start();
+        segments.partial(index, "已识别的文字".into());
+        segments.done(index, Ok(String::new()), true);
+        assert!(segments.finished());
+        assert_eq!(segments.text(), "已识别的文字");
     }
 
     #[test]

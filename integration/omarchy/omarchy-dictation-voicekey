@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+"""Adapter for Omarchy's omarchy-dictation start/stop/toggle interface."""
+import os
+import socket
+import subprocess
+import sys
+import time
+
+if len(sys.argv) != 2 or sys.argv[1] not in ('start', 'stop', 'toggle'):
+    sys.exit('Usage: omarchy-dictation-voicekey <start|stop|toggle>')
+runtime = os.environ.get('XDG_RUNTIME_DIR')
+if not runtime:
+    sys.exit('XDG_RUNTIME_DIR is not set')
+path = os.path.join(runtime, 'voicekey.sock')
+if sys.argv[1] != 'stop':
+    subprocess.run(['systemctl', '--user', 'start', 'voicekey.service'], check=True)
+for attempt in range(30):
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as conn:
+            conn.settimeout(2)
+            conn.connect(path)
+            conn.sendall((sys.argv[1] + '\n').encode())
+            reply = conn.recv(64).decode().strip()
+            if reply != 'ok':
+                sys.exit('VoiceKey: ' + reply)
+            sys.exit(0)
+    except (FileNotFoundError, ConnectionRefusedError):
+        if sys.argv[1] == 'stop':
+            sys.exit(0)
+        time.sleep(0.1)
+sys.exit('VoiceKey did not start')

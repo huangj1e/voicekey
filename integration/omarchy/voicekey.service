@@ -1,0 +1,14 @@
+[Unit]
+Description=VoiceKey dictation service
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=VOICEKEY_OMARCHY=1
+ExecStart=%h/.local/share/voicekey/voicekey
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

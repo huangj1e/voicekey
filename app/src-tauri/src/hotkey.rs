@@ -115,6 +115,8 @@ fn handle(sh: &Shared, st: &Arc<Mutex<State>>, tx: &UnboundedSender<HotEvent>, e
             return true;
         }
     }
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("VOICEKEY_OMARCHY").is_some() { return false; }
     if sh.paused.load(Ordering::Relaxed) {
         return false;
     }

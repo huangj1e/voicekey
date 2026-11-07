@@ -100,7 +100,11 @@ fn overlay<R: Runtime>(app: &AppHandle<R>, label: &str, w: f64, h: f64) -> tauri
 }
 
 pub fn create_overlays<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    overlay(app, "hud", HUD_W, HUD_H)?.set_ignore_cursor_events(true)?;
+    let hud = overlay(app, "hud", HUD_W, HUD_H)?;
+    #[cfg(not(target_os = "linux"))]
+    hud.set_ignore_cursor_events(true)?;
+    #[cfg(target_os = "linux")]
+    let _ = hud;
     let pick = overlay(app, "pick", PICK_W, 300.0)?;
     #[cfg(target_os = "macos")]
     panel::convert(&pick);

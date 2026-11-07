@@ -2,6 +2,8 @@
 
 mod controller;
 mod hotkey;
+#[cfg(target_os = "linux")]
+mod linux_ipc;
 mod offline;
 mod settings;
 mod sound;
@@ -112,7 +114,7 @@ fn get_state(app: AppHandle) -> serde_json::Value {
     let hold: Vec<_> = pf::hold_keys().iter().map(|k| json!({ "id": k.id, "name": k.name })).collect();
     json!({
         "settings": s,
-        "platform": if cfg!(target_os = "macos") { "mac" } else { "win" },
+        "platform": if cfg!(target_os = "macos") { "mac" } else if cfg!(target_os = "linux") { "linux" } else { "win" },
         "arch": std::env::consts::ARCH,
         "version": app.package_info().version.to_string(),
         "holdKeys": hold,
@@ -233,7 +235,7 @@ fn list_sounds() -> Vec<serde_json::Value> {
 
 #[tauri::command]
 fn open_url(url: String) {
-    let cmd = if cfg!(target_os = "macos") { "open" } else { "explorer" };
+    let cmd = if cfg!(target_os = "macos") { "open" } else if cfg!(target_os = "linux") { "xdg-open" } else { "explorer" };
     let _ = std::process::Command::new(cmd).arg(url).spawn();
 }
 
@@ -277,6 +279,8 @@ fn main() {
             app.manage(AppState { settings: Arc::new(RwLock::new(settings.clone())), hk: hk.clone(), tx: tx.clone(), qwen: qwen.clone() });
 
             let (htx, mut hrx) = mpsc::unbounded_channel();
+            #[cfg(target_os = "linux")]
+            linux_ipc::start(htx.clone(), hk.clone());
             hotkey::start(hk, htx);
             tauri::async_runtime::spawn(async move {
                 while let Some(e) = hrx.recv().await {

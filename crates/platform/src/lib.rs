@@ -9,6 +9,11 @@ mod win;
 #[cfg(windows)]
 use win as imp;
 
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+use linux as imp;
+
 mod volume;
 
 pub use imp::{caret, front_app, inject_key, paste, secure_input, start_hook, FrontApp};

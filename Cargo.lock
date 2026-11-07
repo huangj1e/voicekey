@@ -5723,10 +5723,12 @@ dependencies = [
  "block2",
  "core-foundation 0.10.1",
  "coreaudio-sys",
+ "libc",
  "objc2",
  "objc2-app-kit",
  "objc2-av-foundation",
  "objc2-foundation",
+ "serde_json",
  "windows 0.62.2",
 ]
 

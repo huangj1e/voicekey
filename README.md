@@ -159,3 +159,11 @@ Android 的 versionCode 由标签推导：`vX.Y.Z` → `X×10000 + Y×100 + Z`�
 ## 声明
 
 本项目通过分析输入法客户端协议实现，仅供学习与个人使用，与字节跳动、腾讯、阿里巴巴无关。接口可能随时变更或失效；语音会发送到对应厂商的服务器。
+
+### Linux（实验性，Hyprland / Wayland）
+
+Linux 适配仍在开发中。需要 Rust、Node.js、CMake、GTK 3、WebKitGTK 4.1、ALSA 开发包和 `wtype`。用户必须能够读取 `/dev/input/by-path/*-event-kbd`；本机 `input` 组已有此权限。加入该组会允许读取全局键盘输入，请自行评估权限影响。
+
+在 `app` 目录运行 `npm ci` 和 `npm run tauri dev`。当前后端通过 evdev 监听快捷键，不能拦截原始按键；候选框焦点、光标定位、音量自动降低和设备热插拔仍未完整适配。识别完成后通过 `wtype` 直接上屏，录音时不逐字上屏。系统必须支持 Wayland virtual-keyboard 协议。本机已验证单渠道语音输入；此版本没有 Linux 安装包或应用内更新支持。
+
+Omarchy 可通过 `integration/omarchy/` 中的 systemd 用户服务和 `omarchy-dictation-voicekey` 适配器接入其听写入口；选择该后端后右 Alt、F9 与 `Super+Ctrl+X` 使用 VoiceKey。

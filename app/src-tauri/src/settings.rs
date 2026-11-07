@@ -127,7 +127,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        let (hold, tap) = if cfg!(target_os = "macos") { ("rightAlt", (54, "右 ⌘")) } else { ("rightAlt", (0xA3, "右 Ctrl")) };
+        let (hold, tap) = if cfg!(target_os = "macos") { ("rightAlt", (54, "右 ⌘")) } else if cfg!(target_os = "linux") { ("rightAlt", (97, "右 Ctrl")) } else { ("rightAlt", (0xA3, "右 Ctrl")) };
         Self {
             channel: Channel::Doubao,
             hold_key: hold.into(),
