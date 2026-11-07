@@ -166,4 +166,4 @@ Linux 适配仍在开发中。需要 Rust、Node.js、CMake、GTK 3、WebKitGTK 
 
 在 `app` 目录运行 `npm ci` 和 `npm run tauri dev`。当前后端通过 evdev 监听快捷键，不能拦截原始按键；候选框焦点、光标定位、音量自动降低和设备热插拔仍未完整适配。识别完成后通过 `wtype` 直接上屏，录音时不逐字上屏。系统必须支持 Wayland virtual-keyboard 协议。本机已验证单渠道语音输入；此版本没有 Linux 安装包或应用内更新支持。
 
-Omarchy 可通过 `integration/omarchy/` 中的 systemd 用户服务和 `omarchy-dictation-voicekey` 适配器接入其听写入口；选择该后端后右 Alt、F9 与 `Super+Ctrl+X` 使用 VoiceKey。
+Omarchy 可通过 `integration/omarchy/` 中的 systemd 用户服务和 `omarchy-dictation-voicekey` 适配器接入其听写入口；选择该后端后右 Alt、F9 与 `Super+Ctrl+X` 使用 VoiceKey。将 `menu.jsonc` 的条目合并到用户菜单扩展，并将 `omarchy-install-dictation-voicekey` 安装到 PATH 后，可在默认听写菜单中选择 VoiceKey。`window-rules.lua` 为 Hyprland 浮层关闭系统边框并阻止 HUD 抢焦点；可将其复制到 `~/.config/hypr/voicekey.lua`，并在 `hyprland.lua` 加入 `require("hypr.voicekey")`。

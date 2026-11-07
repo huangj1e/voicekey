@@ -60,6 +60,7 @@ export function applyLook(platform: string, theme: string) {
   const root = document.documentElement;
   root.classList.toggle("mac", platform === "mac");
   root.classList.toggle("win", platform !== "mac");
+  root.classList.toggle("linux", platform === "linux");
   const dark = theme === "dark" || (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
   root.classList.toggle("dark", dark);
 }

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Select an already-installed VoiceKey as Omarchy's dictation backend.
+set -euo pipefail
+
+if ! command -v voicekey >/dev/null || ! command -v omarchy-dictation-voicekey >/dev/null; then
+  echo 'VoiceKey and its Omarchy adapter must be installed first.' >&2
+  exit 1
+fi
+systemctl --user enable --now voicekey.service
+omarchy-dictation-use voicekey
+omarchy-restart-hyprctl

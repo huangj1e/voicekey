@@ -11,8 +11,14 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, LogicalSize, Manager, Monitor, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 const TRAY: &[u8] = include_bytes!("../icons/tray.png");
+#[cfg(not(target_os = "linux"))]
 const HUD_W: f64 = 680.0;
+#[cfg(target_os = "linux")]
+const HUD_W: f64 = 720.0;
+#[cfg(not(target_os = "linux"))]
 const HUD_H: f64 = 120.0;
+#[cfg(target_os = "linux")]
+const HUD_H: f64 = 380.0;
 const PICK_W: f64 = 520.0;
 
 static HUD_TOKEN: AtomicU64 = AtomicU64::new(0);

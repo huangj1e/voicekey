@@ -1,0 +1,9 @@
+{
+  // Merge this entry into ~/.config/omarchy/extensions/omarchy-menu.jsonc.
+  "setup.default.dictation.voicekey": {
+    "icon": "",
+    "label": "VoiceKey",
+    "checked": "[[ \"$(omarchy-default-dictation)\" == \"voicekey\" ]]",
+    "action": "omarchy-install-dictation-voicekey"
+  }
+}
