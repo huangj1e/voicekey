@@ -9,7 +9,64 @@ permissions:
   contents: write
 
 jobs:
+  signing-availability:
+    runs-on: ubuntu-latest
+    outputs:
+      desktop: ${{ steps.check.outputs.desktop }}
+      android: ${{ steps.check.outputs.android }}
+    steps:
+      - id: check
+        env:
+          TAURI_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          MAC_CERT: ${{ secrets.MACOS_CERTIFICATE }}
+          MAC_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          ANDROID_STORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$TAURI_KEY" && -n "$MAC_CERT" && -n "$MAC_PASSWORD" ]]; then echo 'desktop=true' >> "$GITHUB_OUTPUT"; else echo 'desktop=false' >> "$GITHUB_OUTPUT"; fi
+          if [[ -n "$ANDROID_STORE" && -n "$ANDROID_PASSWORD" && -n "$ANDROID_ALIAS" && -n "$ANDROID_KEY_PASSWORD" ]]; then echo 'android=true' >> "$GITHUB_OUTPUT"; else echo 'android=false' >> "$GITHUB_OUTPUT"; fi
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: linux-x86_64
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev libasound2-dev libdbus-1-dev librsvg2-dev patchelf
+      - name: Test installer and platform
+        run: |
+          PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s integration/omarchy/tests -v
+          cargo test -p voicekey-platform --locked
+      - name: Build Linux application
+        working-directory: app
+        run: |
+          npm ci
+          npm run tauri build -- --no-bundle
+      - name: Package Linux installer
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          [[ "$GITHUB_REF_TYPE" == tag ]] || VER="0.0.0"
+          integration/omarchy/package-release.sh "$VER" target/release/voicekey "dist/VoiceKey-$VER-linux-x86_64.tar.gz"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VoiceKey-Linux
+          path: dist/*
+
   build:
+    needs: signing-availability
+    if: needs.signing-availability.outputs.desktop == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -98,6 +155,8 @@ jobs:
           path: dist/*
 
   android:
+    needs: signing-availability
+    if: needs.signing-availability.outputs.android == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -201,8 +260,8 @@ jobs:
           path: dist/*
 
   release:
-    needs: [build, android]
-    if: github.ref_type == 'tag'
+    needs: [linux, build, android]
+    if: always() && github.ref_type == 'tag' && needs.linux.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.android.result == 'success' || needs.android.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -216,6 +275,10 @@ jobs:
           URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
           MAC="VoiceKey-$VER-mac.app.tar.gz"
           WIN="VoiceKey-$VER-x64-setup.exe"
+          if [[ ! -f "dist/$MAC.sig" || ! -f "dist/$WIN.sig" ]]; then
+            echo "Desktop signatures unavailable; skipping desktop updater manifest."
+            exit 0
+          fi
           jq -n --arg v "$VER" --arg d "$(date -u +%FT%TZ)" \
             --arg ms "$(cat dist/$MAC.sig)" --arg mu "$URL/$MAC" --arg ws "$(cat dist/$WIN.sig)" --arg wu "$URL/$WIN" \
             '{version: $v, pub_date: $d, platforms: {
@@ -229,4 +292,4 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "VoiceKey $GITHUB_REF_NAME" --generate-notes --latest \
-            --notes "macOS 包未经 Apple 公证（自签名）：首次安装时打开 DMG 将 VoiceKey 拖到「应用程序」，运行前在终端执行 \`xattr -dr com.apple.quarantine /Applications/VoiceKey.app\`；之后可在应用内（设置 → 通用，或菜单栏）直接更新。Windows 提供安装程序（setup.exe）与 MSI 两种格式。Android 提供签名 APK（arm64）：首次安装需允许安装未知应用，之后可在应用内（设置 → 关于与更新）直接更新。"
+            --notes "Linux x86_64 / Omarchy：下载并解压 Linux 压缩包，在图形会话中进入目录运行 \`./install.sh\`。其他平台的安装包仅在本仓库配置对应签名密钥时生成。"

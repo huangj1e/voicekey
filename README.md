@@ -57,12 +57,13 @@ Android 8+（arm64）。不替换当前输入法：开启无障碍服务「Voice
 
 ## 安装
 
-从 [Releases](https://github.com/J3n5en/voicekey/releases) 下载桌面端安装包和 Android APK。iOS 不在 Release 里，需从源码构建。
+从 [Releases](https://github.com/huangj1e/voicekey/releases) 下载桌面端安装包和 Android APK。iOS 不在 Release 里，需从源码构建。
 
 | 系统 | 文件 |
 |---|---|
 | macOS 13+（Apple 芯片与 Intel 通用） | `VoiceKey-x.y.z.dmg`，打开后拖到「应用程序」 |
 | Windows 10/11 x64 | `VoiceKey-x.y.z-x64-setup.exe` 或 `.msi` |
+| Linux x86_64（Omarchy / Hyprland，实验性） | `VoiceKey-x.y.z-linux-x86_64.tar.gz`，解压后在图形会话中运行 `./install.sh` |
 | Android 8+（arm64） | `VoiceKey-x.y.z-android.apk`，首次安装需允许浏览器或文件管理器安装未知应用 |
 
 Android 装好后，在应用「关于与更新」里检查并更新：首次更新要允许 VoiceKey 安装未知应用，下载校验完成后在系统弹窗里确认安装。
@@ -118,7 +119,7 @@ npx tauri build                  # Windows：nsis / msi 安装包
 
 ## 发布
 
-推送 `v*` 标签后，GitHub Actions 构建 macOS 通用 DMG、Windows 安装包和 Android 签名 APK，连同应用内更新所需的更新包、`latest.json`（桌面）与 `android.json`（Android）一起创建 Release：
+推送 `v*` 标签后，GitHub Actions 构建 Linux x86_64 安装压缩包并创建 Release。配置桌面和 Android 签名密钥后，还会构建相应平台的安装包和更新清单；没有对应密钥时跳过这些平台：
 
 ```bash
 git tag v1.0.1 && git push origin v1.0.1
@@ -148,7 +149,7 @@ Android 的 versionCode 由标签推导：`vX.Y.Z` → `X×10000 + Y×100 + Z`�
 
 ## 链接
 
-- 安装包：[github.com/J3n5en/voicekey/releases](https://github.com/J3n5en/voicekey/releases/latest)
+- 安装包：[github.com/huangj1e/voicekey/releases](https://github.com/huangj1e/voicekey/releases/latest)
 - 更新频道：[t.me/EnsoAI_news](https://t.me/EnsoAI_news)
 - 讨论群组：[t.me/EnsoCode_Official](https://t.me/EnsoCode_Official)
 
@@ -179,4 +180,4 @@ Linux 适配仍在开发中。需要 Rust、Node.js、CMake、GTK 3、WebKitGTK 
 
 如果 VoiceKey 仍是默认听写，卸载器会在安装前的后端仍然可用时恢复它；没有记录或原后端已卸载时，会清除默认选择，可在 Omarchy 中重新选择。卸载器保留用户修改过的服务、菜单条目及其他自定义配置；服务被修改时会停止卸载并提示手动处理。安装时创建的配置备份也会保留。
 
-当前后端通过 evdev 监听部分按键，不能拦截原始按键；候选框焦点、光标定位、音量自动降低和设备热插拔仍未完整适配。识别完成后通过 `wtype` 直接上屏，录音时不逐字上屏。系统必须支持 Wayland virtual-keyboard 协议。本机已验证单渠道语音输入；此版本没有 Linux 安装包或应用内更新支持。
+当前后端通过 evdev 监听部分按键，不能拦截原始按键；候选框焦点、光标定位、音量自动降低和设备热插拔仍未完整适配。识别完成后通过 `wtype` 直接上屏，录音时不逐字上屏。系统必须支持 Wayland virtual-keyboard 协议。本机已验证单渠道语音输入；Linux 尚不支持应用内更新。
