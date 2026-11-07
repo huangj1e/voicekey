@@ -164,6 +164,15 @@ Android 的 versionCode 由标签推导：`vX.Y.Z` → `X×10000 + Y×100 + Z`�
 
 Linux 适配仍在开发中。需要 Rust、Node.js、CMake、GTK 3、WebKitGTK 4.1、ALSA 开发包和 `wtype`。用户必须能够读取 `/dev/input/by-path/*-event-kbd`；本机 `input` 组已有此权限。加入该组会允许读取全局键盘输入，请自行评估权限影响。
 
-在 `app` 目录运行 `npm ci` 和 `npm run tauri dev`。当前后端通过 evdev 监听快捷键，不能拦截原始按键；候选框焦点、光标定位、音量自动降低和设备热插拔仍未完整适配。识别完成后通过 `wtype` 直接上屏，录音时不逐字上屏。系统必须支持 Wayland virtual-keyboard 协议。本机已验证单渠道语音输入；此版本没有 Linux 安装包或应用内更新支持。
+在 Omarchy 的图形会话中，从项目根目录执行：
 
-Omarchy 可通过 `integration/omarchy/` 中的 systemd 用户服务和 `omarchy-dictation-voicekey` 适配器接入其听写入口；选择该后端后右 Alt、F9 与 `Super+Ctrl+X` 使用 VoiceKey。将 `menu.jsonc` 的条目合并到用户菜单扩展，并将 `omarchy-install-dictation-voicekey` 安装到 PATH 后，可在默认听写菜单中选择 VoiceKey。`window-rules.lua` 为 Hyprland 浮层关闭系统边框并阻止 HUD 抢焦点；可将其复制到 `~/.config/hypr/voicekey.lua`，并在 `hyprland.lua` 加入 `require("hypr.voicekey")`。
+```bash
+./integration/omarchy/install.sh           # 构建并安装 release 版本
+./integration/omarchy/install.sh --debug   # 较快构建 debug 版本
+```
+
+安装脚本编译应用，将程序和资源放入用户目录，注册应用启动器和 systemd 用户服务，加入默认听写菜单、配置浮层窗口规则，并将 VoiceKey 设为默认听写。它保留现有菜单和用户快捷键，且不卸载其他听写软件；被修改的现有配置会备份。右 Alt / F9 为按住说话，Super+Ctrl+X 为切换说话；Alt+Space 保留给用户现有绑定。脚本需要当前图形会话、Omarchy、Python 3、`wtype` 和上述构建依赖，不会自动安装缺失的系统软件包。
+
+已有 Tauri 构建产物时，可用 `./integration/omarchy/install.sh --binary /path/to/voicekey` 跳过编译；在未运行图形会话时，`--no-activate` 只安装文件与配置，不启动服务或切换默认听写。开发运行可在 `app` 目录使用 `npm ci` 和 `npm run tauri dev`。
+
+当前后端通过 evdev 监听部分按键，不能拦截原始按键；候选框焦点、光标定位、音量自动降低和设备热插拔仍未完整适配。识别完成后通过 `wtype` 直接上屏，录音时不逐字上屏。系统必须支持 Wayland virtual-keyboard 协议。本机已验证单渠道语音输入；此版本没有 Linux 安装包或应用内更新支持。
