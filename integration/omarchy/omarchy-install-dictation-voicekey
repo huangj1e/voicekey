@@ -6,6 +6,31 @@ if ! command -v voicekey >/dev/null || ! command -v omarchy-dictation-voicekey >
   echo 'VoiceKey and its Omarchy adapter must be installed first.' >&2
   exit 1
 fi
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
+[[ $config_home = /* && $state_home = /* ]] || { echo 'XDG paths must be absolute.' >&2; exit 1; }
+previous=''
+if [[ -f "$config_home/omarchy/defaults/dictation" ]]; then
+  IFS= read -r previous < "$config_home/omarchy/defaults/dictation" || true
+fi
 systemctl --user enable --now voicekey.service
 omarchy-dictation-use voicekey
+if [[ -n $previous && $previous != voicekey ]]; then
+  mkdir -p "$state_home/voicekey"
+  chmod 700 "$state_home/voicekey"
+  VOICEKEY_STATE="$state_home/voicekey/install.json" VOICEKEY_PREVIOUS_BACKEND="$previous" python3 - <<'PYCODE'
+import json, os, pathlib
+p = pathlib.Path(os.environ['VOICEKEY_STATE'])
+try:
+    state = json.loads(p.read_text())
+    if not isinstance(state, dict): state = {}
+except (OSError, ValueError):
+    state = {}
+state['previous_backend'] = os.environ['VOICEKEY_PREVIOUS_BACKEND']
+tmp = p.with_suffix('.tmp')
+tmp.write_text(json.dumps(state) + '\n')
+os.chmod(tmp, 0o600)
+tmp.replace(p)
+PYCODE
+fi
 omarchy-restart-hyprctl

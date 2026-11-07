@@ -175,4 +175,8 @@ Linux 适配仍在开发中。需要 Rust、Node.js、CMake、GTK 3、WebKitGTK 
 
 已有 Tauri 构建产物时，可用 `./integration/omarchy/install.sh --binary /path/to/voicekey` 跳过编译；在未运行图形会话时，`--no-activate` 只安装文件与配置，不启动服务或切换默认听写。开发运行可在 `app` 目录使用 `npm ci` 和 `npm run tauri dev`。
 
+卸载可在图形会话中运行 `voicekey-uninstall`（或者在源码目录运行 `./integration/omarchy/uninstall.sh`）。它会移除用户级程序、服务、启动器及安装器管理的菜单和窗口规则；默认保留 `VoiceKey` 数据目录里的设置和模型。需要连这些数据一起永久删除时，使用 `voicekey-uninstall --purge-data`。
+
+如果 VoiceKey 仍是默认听写，卸载器会在安装前的后端仍然可用时恢复它；没有记录或原后端已卸载时，会清除默认选择，可在 Omarchy 中重新选择。卸载器保留用户修改过的服务、菜单条目及其他自定义配置；服务被修改时会停止卸载并提示手动处理。安装时创建的配置备份也会保留。
+
 当前后端通过 evdev 监听部分按键，不能拦截原始按键；候选框焦点、光标定位、音量自动降低和设备热插拔仍未完整适配。识别完成后通过 `wtype` 直接上屏，录音时不逐字上屏。系统必须支持 Wayland virtual-keyboard 协议。本机已验证单渠道语音输入；此版本没有 Linux 安装包或应用内更新支持。

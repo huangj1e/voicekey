@@ -20,6 +20,8 @@ repo_dir=$(cd -- "$script_dir/../.." && pwd)
 config_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}
 data_dir="$HOME/.local/share/voicekey"
 bin_dir="$HOME/.local/bin"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/voicekey"
+previous_backend=""
 mode=release
 binary=''
 activate=1
@@ -32,7 +34,7 @@ while (($#)); do
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
-[[ $config_dir = /* ]] || { echo 'XDG_CONFIG_HOME must be an absolute path.' >&2; exit 1; }
+[[ $config_dir = /* && $state_dir = /* ]] || { echo 'XDG configuration and state paths must be absolute.' >&2; exit 1; }
 [[ -f "$config_dir/hypr/hyprland.lua" ]] || { echo 'Omarchy Hyprland configuration not found.' >&2; exit 1; }
 for cmd in python3 install wtype; do
   command -v "$cmd" >/dev/null || { echo "Missing required command: $cmd" >&2; exit 1; }
@@ -118,6 +120,21 @@ if [[ ! -e $desktop_file ]] || ! cmp -s "$desktop_temp" "$desktop_file"; then
   backup "$desktop_file"
   install -m 644 -- "$desktop_temp" "$desktop_file"
 fi
+# Ship an independent uninstaller with immutable reference copies of our files.
+uninstall_assets="$data_dir/uninstall-assets"
+mkdir -p "$uninstall_assets/assets/sounds"
+for name in uninstall.sh configure-menu.py omarchy-dictation-voicekey omarchy-install-dictation-voicekey; do
+  install -m 755 -- "$script_dir/$name" "$uninstall_assets/$name"
+done
+for name in voicekey.service window-rules.lua; do
+  install -m 644 -- "$script_dir/$name" "$uninstall_assets/$name"
+done
+install -m 644 -- "$repo_dir/app/src-tauri/icons/128x128.png" "$uninstall_assets/assets/icon.png"
+install -m 644 -- "$repo_dir"/app/src-tauri/resources/sounds/* "$uninstall_assets/assets/sounds/"
+if [[ -e "$bin_dir/voicekey-uninstall" || -L "$bin_dir/voicekey-uninstall" ]]; then
+  if [[ $(readlink -- "$bin_dir/voicekey-uninstall" || true) != "$uninstall_assets/uninstall.sh" ]]; then backup "$bin_dir/voicekey-uninstall"; fi
+fi
+ln -sfn -- "$uninstall_assets/uninstall.sh" "$bin_dir/voicekey-uninstall"
 install_config "$script_dir/voicekey.service" "$config_dir/systemd/user/voicekey.service"
 install_config "$script_dir/window-rules.lua" "$config_dir/hypr/voicekey.lua"
 append_once "$config_dir/hypr/hyprland.lua" 'require("hypr.voicekey")' $'-- VoiceKey overlay windows.\nrequire("hypr.voicekey")'
@@ -128,6 +145,9 @@ if ((activate)); then
   systemctl --user daemon-reload
   # Keep ~/.local/bin reachable in user sessions even when it was absent at login.
   case ":$PATH:" in *":$bin_dir:"*) ;; *) export PATH="$bin_dir:$PATH" ;; esac
+  if [[ -f "$config_dir/omarchy/defaults/dictation" ]]; then
+    IFS= read -r previous_backend < "$config_dir/omarchy/defaults/dictation" || true
+  fi
   "$bin_dir/omarchy-install-dictation-voicekey"
   omarchy-menu refresh
   if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
@@ -141,6 +161,25 @@ if ((activate)); then
 else
   echo 'Installed files only. To activate in a graphical session, rerun without --no-activate.'
 fi
+# Retain the backend that was displaced, even across repeated installations.
+mkdir -p -- "$state_dir"
+chmod 700 "$state_dir"
+VOICEKEY_INSTALL_STATE="$state_dir/install.json" VOICEKEY_PREVIOUS_BACKEND="$previous_backend" VOICEKEY_BINARY="$data_dir/voicekey" python3 - <<'PYCODE'
+import hashlib, json, os, pathlib
+p = pathlib.Path(os.environ['VOICEKEY_INSTALL_STATE'])
+try:
+    old = json.loads(p.read_text())
+    if not isinstance(old, dict): old = {}
+except (OSError, ValueError):
+    old = {}
+previous = os.environ['VOICEKEY_PREVIOUS_BACKEND']
+if previous and previous != 'voicekey': old['previous_backend'] = previous
+old['binary_sha256'] = hashlib.sha256(pathlib.Path(os.environ['VOICEKEY_BINARY']).read_bytes()).hexdigest()
+tmp = p.with_suffix('.tmp')
+tmp.write_text(json.dumps(old) + '\n')
+os.chmod(tmp, 0o600)
+tmp.replace(p)
+PYCODE
 if ! find /dev/input/by-path -maxdepth 1 -name '*-event-kbd' -readable -print -quit 2>/dev/null | grep -q .; then
   echo 'Note: no readable keyboard event device was found; custom shortcuts and candidate keys may require input-device permissions.' >&2
 fi
